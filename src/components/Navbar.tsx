@@ -13,7 +13,9 @@ import {
   Clock, 
   LogOut,
   CalendarCheck,
-  Dumbbell
+  Dumbbell,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProgress } from '../context/ProgressContext';
@@ -24,7 +26,7 @@ export type MainTabType = 'home' | 'material' | 'extras' | 'testes' | 'aulas' | 
 interface NavbarProps {
   currentTab: MainTabType;
   onTabChange: (tab: MainTabType) => void;
-  onOpenAuth: (defaultAdmin?: boolean) => void;
+  onOpenAuth: (mode?: 'login' | 'request') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -197,12 +199,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => onOpenAuth(false)}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20"
-              >
-                Entrar
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  id="nav-btn-request-access"
+                  onClick={() => onOpenAuth('request')}
+                  className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 hover:border-slate-500 bg-slate-900/80 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Requisitar Acesso</span>
+                </button>
+
+                <button
+                  id="nav-btn-login"
+                  onClick={() => onOpenAuth('login')}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Entrar</span>
+                </button>
+              </div>
             )}
 
             {/* Mobile Hamburger */}
@@ -223,6 +238,33 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="pb-3 mb-2 border-b border-slate-850 flex items-center justify-between">
             <InsightLogo variant="nav" />
           </div>
+
+          {!isAuthenticated && (
+            <div className="pb-3 mb-2 border-b border-slate-800 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAuth('login');
+                }}
+                className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Entrar na Plataforma</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAuth('request');
+                }}
+                className="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs"
+              >
+                <UserPlus className="w-4 h-4 text-blue-400" />
+                <span>Requisitar Acesso</span>
+              </button>
+            </div>
+          )}
+
           {[
             { tab: 'home' as MainTabType, label: 'Home', icon: Home },
             { tab: 'material' as MainTabType, label: 'Material (30 Unidades)', icon: BookOpen },

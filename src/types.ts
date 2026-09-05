@@ -23,7 +23,7 @@ export type LoginResult =
   | { success: true; role: 'admin' }
   | { success: true; role: 'student' }
   | { success: false; status: 'pending'; name: string }
-  | { success: false; status: 'new_request'; name: string }
+  | { success: false; status: 'not_found'; message: string }
   | { success: false; status: 'blocked'; message: string };
 
 export interface User {

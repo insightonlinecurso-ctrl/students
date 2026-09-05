@@ -25,9 +25,11 @@ const MainAppContent: React.FC = () => {
   const [selectedMaterialUnitId, setSelectedMaterialUnitId] = useState<number | null>(null);
   const [extrasSubTab, setExtrasSubTab] = useState<'hub' | 'planner' | 'exercises'>('hub');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'request'>('login');
   const [isAiTutorModalOpen, setIsAiTutorModalOpen] = useState(false);
 
-  const handleOpenAuth = () => {
+  const handleOpenAuth = (mode: 'login' | 'request' = 'login') => {
+    setAuthModalMode(mode);
     setIsAuthModalOpen(true);
   };
 
@@ -74,7 +76,7 @@ const MainAppContent: React.FC = () => {
       {/* Main Viewport */}
       <main className="flex-1 pb-16">
         {!isAuthenticated ? (
-          <PaywallGate onOpenLogin={() => handleOpenAuth()} />
+          <PaywallGate onOpenLogin={(mode) => handleOpenAuth(mode || 'login')} />
         ) : isSubscriptionBlocked && !isAdmin ? (
           <div className="max-w-xl mx-auto my-16 p-8 bg-white border border-rose-200 rounded-3xl text-center space-y-4 shadow-lg">
             <h2 className="text-2xl font-black text-rose-600">Período de Acesso Expirado</h2>
@@ -183,11 +185,12 @@ const MainAppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Auth Modal (Login Unificado) */}
+      {/* Auth Modal (Login Unificado & Requisitar Acesso) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAdminLogin={() => setCurrentTab('admin')}
+        initialMode={authModalMode}
       />
 
       {/* Footer */}

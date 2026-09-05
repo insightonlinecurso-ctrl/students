@@ -19,6 +19,7 @@ interface AuthContextType {
   approveAccessRequest: (requestId: string) => void;
   approveStudentDirectly: (studentId: string) => void;
   deleteAccessRequest: (requestId: string) => void;
+  deleteStudent: (studentId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -293,19 +294,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, role: 'student' };
     }
 
-    // 3. Novo Aluno / E-mail não cadastrado ainda (Ex: Pedro)
-    // NÃO faz login imediatamente! Cadastra a solicitação e aguarda aprovação da Equipe Insight.
-    requestAccess({
-      name: cleanName || 'Aluno Insight',
-      email: cleanEmail,
-      phone: phone || '',
-      notes: 'Solicitação registrada na tela de login'
-    });
-
+    // 3. Usuário ou e-mail não encontrado
+    // "Entrar é para entrar e não cadastrar."
     return {
       success: false,
-      status: 'new_request',
-      name: cleanName || 'Aluno Insight'
+      status: 'not_found',
+      message: 'E-mail ou dados de acesso não encontrados. Se você ainda não possui matrícula, utilize o botão "Requisitar Acesso".'
     };
   };
 
@@ -417,6 +411,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAccessRequests((prev) => prev.filter((r) => r.id !== requestId));
   };
 
+  const deleteStudent = (studentId: string) => {
+    const studentToDelete = allStudents.find((s) => s.id === studentId);
+    setAllStudents((prev) => prev.filter((s) => s.id !== studentId));
+    if (studentToDelete) {
+      setAccessRequests((prev) =>
+        prev.filter((r) => r.email.toLowerCase() !== studentToDelete.email.toLowerCase())
+      );
+    }
+    if (user && user.id === studentId) {
+      setUser(null);
+    }
+  };
+
   const quickDemoLogin = () => {
     const existing = allStudents.find((s) => !s.isRequestPending && s.subscriptionStatus === 'active');
     if (existing) {
@@ -510,7 +517,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         requestAccess,
         approveAccessRequest,
         approveStudentDirectly,
-        deleteAccessRequest
+        deleteAccessRequest,
+        deleteStudent
       }}
     >
       {children}

@@ -31,7 +31,16 @@ import { User } from '../types';
 import { INSIGHT_LOGO_ICON, CALENDLY_BOOKING_URL } from '../assets/brand';
 
 export const AdminView: React.FC = () => {
-  const { allStudents, accessRequests, approveAccessRequest, approveStudentDirectly, deleteAccessRequest, renewStudentCycle, user } = useAuth();
+  const { 
+    allStudents, 
+    accessRequests, 
+    approveAccessRequest, 
+    approveStudentDirectly, 
+    deleteAccessRequest, 
+    deleteStudent,
+    renewStudentCycle, 
+    user 
+  } = useAuth();
   const { conversationSubmissions, scheduledClasses } = useProgress();
 
   const [selectedStudentId, setSelectedStudentId] = useState<string>(
@@ -40,6 +49,22 @@ export const AdminView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [renewalSuccessId, setRenewalSuccessId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<User | null>(null);
+
+  const handleConfirmDeleteStudent = () => {
+    if (!studentToDelete) return;
+    const deletedName = studentToDelete.name;
+    deleteStudent(studentToDelete.id);
+    setActionNotice(`Aluno "${deletedName}" foi descadastrado com sucesso.`);
+    setTimeout(() => setActionNotice(null), 4000);
+    const remaining = allStudents.filter((s) => s.id !== studentToDelete.id);
+    if (remaining.length > 0) {
+      setSelectedStudentId(remaining[0].id);
+    } else {
+      setSelectedStudentId('');
+    }
+    setStudentToDelete(null);
+  };
 
   // Filter students by name, email or phone
   const filteredStudents = allStudents.filter((s) =>
@@ -441,6 +466,15 @@ export const AdminView: React.FC = () => {
                     <RefreshCw className="w-4 h-4" />
                     <span>Renovar Ciclo (+30 dias)</span>
                   </button>
+
+                  <button
+                    onClick={() => setStudentToDelete(selectedStudent)}
+                    title="Descadastrar aluno da plataforma"
+                    className="flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all hover:scale-105 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Descadastrar Aluno</span>
+                  </button>
                 </div>
               </div>
 
@@ -620,6 +654,48 @@ export const AdminView: React.FC = () => {
         )}
 
       </div>
+
+      {/* Modal de Confirmação para Descadastrar Aluno */}
+      {studentToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-slate-900 space-y-4 animate-fadeIn">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-black text-slate-900">Confirmar Descadastro</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Tem certeza que deseja descadastrar o aluno <strong className="text-slate-900">{studentToDelete.name}</strong> ({studentToDelete.email})?
+              </p>
+              <div className="text-[11px] text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 text-left space-y-1">
+                <p className="font-bold flex items-center space-x-1">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>Atenção:</span>
+                </p>
+                <p>Esta ação removerá o acesso do aluno, impedirá novos logins e excluirá o perfil da lista da plataforma.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setStudentToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteStudent}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition-all cursor-pointer flex items-center justify-center space-x-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Sim, Descadastrar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1,5 +1,16 @@
-import React, { useState } from 'react';
-import { X, Lock, ArrowRight, GraduationCap, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  LogIn, 
+  UserPlus, 
+  ArrowRight, 
+  GraduationCap, 
+  Clock, 
+  CheckCircle2, 
+  AlertCircle,
+  Send,
+  Lock
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { INSIGHT_HEADER_BANNER } from '../assets/brand';
 
@@ -7,15 +18,28 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdminLogin?: () => void;
+  initialMode?: 'login' | 'request';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAdminLogin }) => {
-  const { login } = useAuth();
+export const AuthModal: React.FC<AuthModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onAdminLogin,
+  initialMode = 'login' 
+}) => {
+  const { login, requestAccess } = useAuth();
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
+  const [mode, setMode] = useState<'login' | 'request'>('login');
+
+  // Login form state
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Request access form state
+  const [reqName, setReqName] = useState('');
+  const [reqEmail, setReqEmail] = useState('');
+  const [reqPhone, setReqPhone] = useState('');
+  const [reqNotes, setReqNotes] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [pendingNotice, setPendingNotice] = useState<{
@@ -24,35 +48,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAdminLo
     description: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode || 'login');
+      setError(null);
+      setPendingNotice(null);
+    }
+  }, [isOpen, initialMode]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setPendingNotice(null);
 
-    if (!email.trim() && name.trim().toLowerCase() !== 'carlos') {
-      setError('Por favor, informe o seu e-mail.');
+    const cleanId = loginIdentifier.trim();
+    if (!cleanId) {
+      setError('Por favor, informe seu e-mail de aluno.');
       return;
     }
 
-    const result = login(email, name, password, phone);
+    const result = login(cleanId, cleanId, loginPassword);
 
     if (result.success) {
-      // Login com sucesso (Admin ou Aluno Aprovado)
-      if (result.role === 'admin') {
-        if (onAdminLogin) onAdminLogin();
+      if (result.role === 'admin' && onAdminLogin) {
+        onAdminLogin();
       }
       onClose();
       return;
     }
 
-    if (result.status === 'new_request') {
-      setPendingNotice({
-        title: 'Solicitação Enviada com Sucesso!',
-        studentName: result.name,
-        description: 'Seus dados foram registrados com sucesso. Para garantir a segurança dos alunos, novos acessos são verificados e liberados pela Equipe Insight. Por favor, aguarde a liberação do seu acesso. Entraremos em contato via WhatsApp ou e-mail assim que a sua matrícula for ativada.'
-      });
+    if (result.status === 'not_found') {
+      setError(result.message);
       return;
     }
 
@@ -71,6 +99,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAdminLo
     }
   };
 
+  const handleRequestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setPendingNotice(null);
+
+    if (!reqName.trim() || !reqEmail.trim()) {
+      setError('Por favor, informe seu nome e e-mail.');
+      return;
+    }
+
+    requestAccess({
+      name: reqName.trim(),
+      email: reqEmail.trim(),
+      phone: reqPhone.trim(),
+      notes: reqNotes.trim()
+    });
+
+    setPendingNotice({
+      title: 'Solicitação Enviada com Sucesso!',
+      studentName: reqName.trim(),
+      description: 'Seus dados foram registrados com sucesso. Para garantir a segurança dos alunos, novos acessos são verificados e liberados pela Equipe Insight. Por favor, aguarde a liberação do seu acesso. Entraremos em contato via WhatsApp ou e-mail assim que a sua matrícula for ativada.'
+    });
+  };
+
   const handleCloseNotice = () => {
     setPendingNotice(null);
     onClose();
@@ -78,12 +130,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAdminLo
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl relative animate-fadeIn">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl relative animate-fadeIn text-slate-100">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-5 top-5 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-850 z-10 transition-colors"
+          className="absolute right-5 top-5 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 z-10 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -125,95 +177,212 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAdminLo
             <button
               type="button"
               onClick={handleCloseNotice}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors"
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors cursor-pointer"
             >
               OK, Entendi
             </button>
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="space-y-1.5 text-center">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto mb-1">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">Acesso à Plataforma</h3>
-              <p className="text-xs text-slate-400">
-                Acesse suas 30 unidades, métricas pedagógicas e aulas particulares.
-              </p>
+            {/* Top Mode Selector Tabs */}
+            <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                id="modal-tab-login"
+                onClick={() => {
+                  setMode('login');
+                  setError(null);
+                }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                  mode === 'login'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Entrar</span>
+              </button>
+
+              <button
+                type="button"
+                id="modal-tab-request"
+                onClick={() => {
+                  setMode('request');
+                  setError(null);
+                }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                  mode === 'request'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Requisitar Acesso</span>
+              </button>
             </div>
 
             {error && (
-              <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+              <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2 animate-fadeIn">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{error}</span>
+                <span className="flex-1">{error}</span>
               </div>
             )}
 
-            {/* Single Unified Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nome Completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Seu nome completo"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+            {/* FORM 1: ENTRAR (Strictly login, no registration) */}
+            {mode === 'login' && (
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+                <div className="space-y-1 text-center">
+                  <h3 className="text-base font-bold text-white">Entrar na Plataforma</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Acesse com seu e-mail cadastrado e senha de aluno.
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  E-mail
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="aluno@email.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    E-mail do Aluno
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
+                    placeholder="aluno@email.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 shadow-inner"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Senha de Acesso
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Senha de Acesso
+                  </label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 shadow-inner"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  WhatsApp / Telefone <span className="text-slate-500 font-normal">(para novos cadastros)</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(11) 99999-9999"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                <button
+                  type="submit"
+                  id="btn-login-submit"
+                  className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2 cursor-pointer mt-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Entrar</span>
+                </button>
 
-              <button
-                type="submit"
-                id="btn-login-submit"
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2 cursor-pointer mt-2"
-              >
-                <span>Entrar na Plataforma</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
+                <div className="pt-2 text-center">
+                  <p className="text-xs text-slate-400">
+                    Ainda não possui matrícula?{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('request');
+                        setError(null);
+                      }}
+                      className="text-blue-400 hover:underline font-bold"
+                    >
+                      Requisitar Acesso
+                    </button>
+                  </p>
+                </div>
+              </form>
+            )}
+
+            {/* FORM 2: REQUISITAR ACESSO (Dedicated registration/request) */}
+            {mode === 'request' && (
+              <form onSubmit={handleRequestSubmit} className="space-y-3.5">
+                <div className="space-y-1 text-center">
+                  <h3 className="text-base font-bold text-white">Requisitar Primeiro Acesso</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Preencha os dados abaixo para análise da Equipe Insight.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Nome Completo <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={reqName}
+                    onChange={(e) => setReqName(e.target.value)}
+                    placeholder="Seu nome completo"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    E-mail <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={reqEmail}
+                    onChange={(e) => setReqEmail(e.target.value)}
+                    placeholder="seu.email@exemplo.com"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    WhatsApp / Telefone <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={reqPhone}
+                    onChange={(e) => setReqPhone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Mensagem ou Nível de Inglês <span className="text-slate-500 font-normal">(opcional)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={reqNotes}
+                    onChange={(e) => setReqNotes(e.target.value)}
+                    placeholder="Ex: Já estudei básico, preciso de inglês para o trabalho..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  id="btn-request-submit"
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2 cursor-pointer mt-1"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Enviar Solicitação de Acesso</span>
+                </button>
+
+                <div className="pt-2 text-center">
+                  <p className="text-xs text-slate-400">
+                    Já é aluno matriculado?{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('login');
+                        setError(null);
+                      }}
+                      className="text-blue-400 hover:underline font-bold"
+                    >
+                      Fazer Login
+                    </button>
+                  </p>
+                </div>
+              </form>
+            )}
           </>
         )}
 
