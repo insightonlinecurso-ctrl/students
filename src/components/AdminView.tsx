@@ -28,7 +28,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useProgress } from '../context/ProgressContext';
 import { User } from '../types';
-import { INSIGHT_LOGO_ICON } from '../assets/brand';
+import { INSIGHT_LOGO_ICON, CALENDLY_BOOKING_URL } from '../assets/brand';
 
 export const AdminView: React.FC = () => {
   const { allStudents, accessRequests, approveAccessRequest, deleteAccessRequest, renewStudentCycle, user } = useAuth();
@@ -585,7 +585,7 @@ export const AdminView: React.FC = () => {
                       </div>
 
                       <a
-                        href={cls.calendlyUrl || 'https://calendly.com'}
+                        href={cls.calendlyUrl || CALENDLY_BOOKING_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold flex items-center space-x-1.5 shrink-0"

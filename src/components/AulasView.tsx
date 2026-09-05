@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useProgress } from '../context/ProgressContext';
 import { useAuth } from '../context/AuthContext';
-import { INSIGHT_LOGO_ICON } from '../assets/brand';
+import { INSIGHT_LOGO_ICON, CALENDLY_BOOKING_URL } from '../assets/brand';
 import mentoringBannerImg from '../assets/images/private_mentoring_banner_1788459652545.jpg';
 
 interface AulasViewProps {
@@ -115,7 +115,7 @@ export const AulasView: React.FC<AulasViewProps> = ({ onGoToMaterial }) => {
       date: selectedDate || new Date().toLocaleDateString('pt-BR'),
       time: selectedTime || 'Horário via Calendly',
       studentGoals: `[Foco: ${classType}] ${studentGoals}`,
-      calendlyUrl: 'https://calendly.com'
+      calendlyUrl: CALENDLY_BOOKING_URL
     });
 
     setIsSuccessSaved(true);
@@ -389,7 +389,7 @@ export const AulasView: React.FC<AulasViewProps> = ({ onGoToMaterial }) => {
                 </button>
 
                 <a
-                  href="https://calendly.com"
+                  href={CALENDLY_BOOKING_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm hover:shadow-blue-500/25 transition-all active:scale-95"
@@ -468,7 +468,7 @@ export const AulasView: React.FC<AulasViewProps> = ({ onGoToMaterial }) => {
             </div>
 
             <a
-              href="https://calendly.com"
+              href={CALENDLY_BOOKING_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center space-x-2 shadow-xs transition-all active:scale-98"

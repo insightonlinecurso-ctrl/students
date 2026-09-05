@@ -9,3 +9,5 @@ export const INSIGHT_THEME = {
   slateDark: '#1E293B',
   brandColor: '#2563EB',
 };
+
+export const CALENDLY_BOOKING_URL = 'https://calendly.com/insightenglishclub/private-english-classe-insight';
