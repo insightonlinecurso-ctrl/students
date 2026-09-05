@@ -1,0 +1,7 @@
+{
+  "name": "Insight English Club",
+  "description": "Plataforma completa de aprendizado de inglês com Material de 30 unidades, Planner Inteligente por IA, Treinamento de Vocabulário, Exercícios de Competências, Nivelamento CEFR Oficial e Testes por Habilidade (Listening, Reading, Speaking, Writing) com 15 atividades por nível, Aulas e Painel Admin.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
