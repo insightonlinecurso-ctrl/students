@@ -12,7 +12,9 @@ import {
   Star,
   UserPlus,
   X,
-  Send
+  Send,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { INSIGHT_HEADER_BANNER } from '../assets/brand';
@@ -25,6 +27,14 @@ export const PaywallGate: React.FC<PaywallGateProps> = ({ onOpenLogin }) => {
   const { login, quickDemoLogin, requestAccess } = useAuth();
   const [customEmail, setCustomEmail] = useState('');
   const [customName, setCustomName] = useState('');
+  const [customPassword, setCustomPassword] = useState('');
+  const [customPhone, setCustomPhone] = useState('');
+  const [customError, setCustomError] = useState<string | null>(null);
+  const [customNotice, setCustomNotice] = useState<{
+    title: string;
+    name: string;
+    message: string;
+  } | null>(null);
 
   // Request Access Modal State
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -36,8 +46,41 @@ export const PaywallGate: React.FC<PaywallGateProps> = ({ onOpenLogin }) => {
 
   const handleCustomLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customEmail) {
-      login(customEmail, customName || 'Aluno Insight');
+    setCustomError(null);
+    setCustomNotice(null);
+
+    if (!customEmail.trim() && customName.trim().toLowerCase() !== 'carlos') {
+      setCustomError('Por favor, informe seu e-mail.');
+      return;
+    }
+
+    const result = login(customEmail, customName, customPassword, customPhone);
+
+    if (result.success) {
+      return;
+    }
+
+    if (result.status === 'new_request') {
+      setCustomNotice({
+        title: 'Solicitação Enviada com Sucesso!',
+        name: result.name,
+        message: 'Seus dados foram registrados com sucesso. Para a segurança dos alunos, novos acessos são verificados e liberados pela Equipe Insight. Por favor, aguarde a liberação do seu acesso. Entraremos em contato via WhatsApp ou e-mail.'
+      });
+      return;
+    }
+
+    if (result.status === 'pending') {
+      setCustomNotice({
+        title: 'Acesso em Análise',
+        name: result.name,
+        message: 'Sua solicitação de acesso já está registrada e em análise pela Equipe Insight. Por favor, aguarde a liberação para acessar a plataforma.'
+      });
+      return;
+    }
+
+    if (result.status === 'blocked') {
+      setCustomError(result.message);
+      return;
     }
   };
 
@@ -159,51 +202,102 @@ export const PaywallGate: React.FC<PaywallGateProps> = ({ onOpenLogin }) => {
               </div>
             </div>
 
-            {/* Login Form or Quick Demo */}
-            <div className="w-full md:w-80 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
-              <form onSubmit={handleCustomLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Nome do Aluno
-                  </label>
-                  <input
-                    type="text"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="Seu nome completo"
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"
-                  />
+            {/* Login Form or Feedback Box */}
+            <div className="w-full md:w-84 bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+              {customNotice ? (
+                <div className="text-center space-y-3 p-3 bg-amber-50 border border-amber-200 rounded-xl animate-fadeIn">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-900">{customNotice.title}</h4>
+                  <p className="text-xs text-amber-800 font-semibold">Olá, {customNotice.name}!</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">{customNotice.message}</p>
+                  <button
+                    type="button"
+                    onClick={() => setCustomNotice(null)}
+                    className="mt-2 w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition-colors"
+                  >
+                    Voltar ao Início
+                  </button>
                 </div>
+              ) : (
+                <form onSubmit={handleCustomLogin} className="space-y-3.5">
+                  {customError && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                      <span>{customError}</span>
+                    </div>
+                  )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    E-mail do Aluno
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={customEmail}
-                    onChange={(e) => setCustomEmail(e.target.value)}
-                    placeholder="aluno@email.com"
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Nome do Aluno
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      placeholder="Seu nome completo"
+                      className="w-full px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
-                >
-                  <span>Entrar na Plataforma</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </form>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      E-mail do Aluno
+                    </label>
+                    <input
+                      type="email"
+                      value={customEmail}
+                      onChange={(e) => setCustomEmail(e.target.value)}
+                      placeholder="aluno@email.com"
+                      className="w-full px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs"
+                    />
+                  </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-200 text-center">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Senha de Acesso
+                    </label>
+                    <input
+                      type="password"
+                      value={customPassword}
+                      onChange={(e) => setCustomPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      WhatsApp / Telefone <span className="text-slate-400 font-normal">(para novos alunos)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={customPhone}
+                      onChange={(e) => setCustomPhone(e.target.value)}
+                      placeholder="(11) 99999-9999"
+                      className="w-full px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer mt-1"
+                  >
+                    <span>Entrar na Plataforma</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+
+              <div className="mt-3.5 pt-3 border-t border-slate-200 text-center">
                 <button
                   type="button"
                   id="btn-request-access"
                   onClick={() => setIsRequestModalOpen(true)}
-                  className="w-full py-2.5 px-3 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-300 transition-colors flex items-center justify-center space-x-1.5 shadow-sm"
+                  className="w-full py-2 px-3 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-300 transition-colors flex items-center justify-center space-x-1.5 shadow-xs"
                 >
                   <UserPlus className="w-3.5 h-3.5 text-blue-600" />
                   <span>Requisitar Acesso</span>

@@ -19,6 +19,13 @@ export interface AccessRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+export type LoginResult =
+  | { success: true; role: 'admin' }
+  | { success: true; role: 'student' }
+  | { success: false; status: 'pending'; name: string }
+  | { success: false; status: 'new_request'; name: string }
+  | { success: false; status: 'blocked'; message: string };
+
 export interface User {
   id: string;
   name: string;

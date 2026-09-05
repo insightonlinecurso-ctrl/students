@@ -140,21 +140,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Perfil</span>
             </button>
 
-            {/* Admin Tab (Gated with Carlos / 10186810) */}
-            <button
-              id="nav-tab-admin"
-              onClick={() => handleNavClick('admin')}
-              className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                currentTab === 'admin'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : isAdmin
-                    ? 'text-emerald-400 hover:bg-emerald-950/40'
-                    : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>(Admin)</span>
-            </button>
+            {/* Admin Tab - Visível EXCLUSIVAMENTE quando autenticado como Carlos (Admin) */}
+            {isAdmin && (
+              <button
+                id="nav-tab-admin"
+                onClick={() => handleNavClick('admin')}
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  currentTab === 'admin'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-400 hover:bg-emerald-950/40'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Painel Admin</span>
+              </button>
+            )}
           </nav>
 
           {/* Right Area: Days Remaining Counter (Only when logged in as student) & User Profile */}
@@ -230,7 +230,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             { tab: 'testes' as MainTabType, label: 'Testes (Nivelamento)', icon: GraduationCap },
             { tab: 'aulas' as MainTabType, label: 'Aulas Particulares', icon: CalendarCheck },
             { tab: 'perfil' as MainTabType, label: 'Perfil do Aluno', icon: UserIcon },
-            { tab: 'admin' as MainTabType, label: '(Admin) - Seção Carlos', icon: ShieldCheck },
+            ...(isAdmin ? [{ tab: 'admin' as MainTabType, label: 'Painel Admin', icon: ShieldCheck }] : []),
           ].map((item) => {
             const Icon = item.icon;
             const isSelected = currentTab === item.tab;

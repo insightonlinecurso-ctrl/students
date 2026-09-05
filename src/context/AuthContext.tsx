@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, CEFRLevel, AccessRequest } from '../types';
+import { User, CEFRLevel, AccessRequest, LoginResult } from '../types';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isSubscriptionBlocked: boolean;
-  login: (email: string, name?: string, password?: string, phone?: string) => boolean;
+  login: (email: string, name?: string, password?: string, phone?: string) => LoginResult;
   loginAsAdmin: (name: string, password?: string) => boolean;
   logout: () => void;
   quickDemoLogin: () => void;
@@ -17,6 +17,7 @@ interface AuthContextType {
   accessRequests: AccessRequest[];
   requestAccess: (data: { name: string; email: string; phone?: string; notes?: string }) => void;
   approveAccessRequest: (requestId: string) => void;
+  approveStudentDirectly: (studentId: string) => void;
   deleteAccessRequest: (requestId: string) => void;
 }
 
@@ -238,32 +239,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
-  const login = (email: string, name: string = 'Aluno Insight', password?: string, phone?: string): boolean => {
-    if (name.trim().toLowerCase() === 'carlos' && password === '10186810') {
-      return loginAsAdmin(name, password);
+  const login = (email: string, name: string = '', password?: string, phone?: string): LoginResult => {
+    const cleanName = (name || '').trim();
+    const cleanPassword = (password || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    // 1. Verificação Secreta de Administrador: Carlos / 10186810
+    // Funciona silenciosamente sem nenhuma indicação pública na interface
+    if (
+      (cleanName.toLowerCase() === 'carlos' && cleanPassword === '10186810') ||
+      (cleanEmail === 'carlos' && cleanPassword === '10186810') ||
+      (cleanEmail === 'carlos.admin@insightenglish.com' && cleanPassword === '10186810') ||
+      (cleanEmail.startsWith('carlos@') && cleanPassword === '10186810')
+    ) {
+      loginAsAdmin('Carlos', '10186810');
+      return { success: true, role: 'admin' };
     }
 
-    // Look for existing student by email
-    const existing = allStudents.find((s) => s.email.toLowerCase() === email.toLowerCase());
+    // 2. Busca aluno existente por e-mail
+    const existing = allStudents.find((s) => s.email.toLowerCase() === cleanEmail);
+
     if (existing) {
+      // Se a solicitação ainda está pendente de aprovação pela Equipe Insight
+      if (existing.isRequestPending) {
+        return {
+          success: false,
+          status: 'pending',
+          name: existing.name || cleanName || 'Aluno'
+        };
+      }
+
+      // Se a assinatura está bloqueada
+      if (existing.subscriptionStatus === 'blocked') {
+        return {
+          success: false,
+          status: 'blocked',
+          message: 'Seu acesso está suspenso. Entre em contato com a Equipe Insight.'
+        };
+      }
+
+      // Se o ciclo expirou
+      if (existing.subscriptionDaysLeft <= 0 || existing.subscriptionStatus === 'expired') {
+        return {
+          success: false,
+          status: 'blocked',
+          message: 'Seu ciclo de estudos expirou. Entre em contato com a Equipe Insight para renovar.'
+        };
+      }
+
+      // Aluno ativo e aprovado pela Equipe Insight!
       const updated = phone && !existing.phone ? { ...existing, phone } : existing;
       setUser(updated);
-      return true;
+      return { success: true, role: 'student' };
     }
 
-    const newStudent = createStudentRecord(
-      `usr_${Date.now()}`,
-      name,
-      email,
-      phone || '',
-      '',
-      undefined,
-      false
-    );
+    // 3. Novo Aluno / E-mail não cadastrado ainda (Ex: Pedro)
+    // NÃO faz login imediatamente! Cadastra a solicitação e aguarda aprovação da Equipe Insight.
+    requestAccess({
+      name: cleanName || 'Aluno Insight',
+      email: cleanEmail,
+      phone: phone || '',
+      notes: 'Solicitação registrada na tela de login'
+    });
 
-    setAllStudents((prev) => [newStudent, ...prev]);
-    setUser(newStudent);
-    return true;
+    return {
+      success: false,
+      status: 'new_request',
+      name: cleanName || 'Aluno Insight'
+    };
   };
 
   // Requisitar Acesso: Adiciona solicitação formal E cadastra em allStudents para o admin Carlos visualizar
@@ -313,9 +356,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const approveAccessRequest = (requestId: string) => {
+    let approvedEmail = '';
     setAccessRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
+          approvedEmail = r.email.toLowerCase();
           return { ...r, status: 'approved' as const };
         }
         return r;
@@ -323,10 +368,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     const targetReq = accessRequests.find((r) => r.id === requestId);
-    if (targetReq) {
+    const emailToApprove = approvedEmail || targetReq?.email?.toLowerCase();
+
+    if (emailToApprove) {
       setAllStudents((prev) =>
         prev.map((s) => {
-          if (s.email.toLowerCase() === targetReq.email.toLowerCase()) {
+          if (s.email.toLowerCase() === emailToApprove) {
             return {
               ...s,
               isRequestPending: false,
@@ -340,12 +387,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const approveStudentDirectly = (studentId: string) => {
+    let studentEmail = '';
+    setAllStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === studentId) {
+          studentEmail = s.email.toLowerCase();
+          return {
+            ...s,
+            isRequestPending: false,
+            subscriptionStatus: 'active',
+            subscriptionDaysLeft: 30
+          };
+        }
+        return s;
+      })
+    );
+
+    if (studentEmail) {
+      setAccessRequests((prev) =>
+        prev.map((r) =>
+          r.email.toLowerCase() === studentEmail ? { ...r, status: 'approved' as const } : r
+        )
+      );
+    }
+  };
+
   const deleteAccessRequest = (requestId: string) => {
     setAccessRequests((prev) => prev.filter((r) => r.id !== requestId));
   };
 
   const quickDemoLogin = () => {
-    login('aluno.novo@insightenglish.com', 'Novo Aluno Insight');
+    const existing = allStudents.find((s) => !s.isRequestPending && s.subscriptionStatus === 'active');
+    if (existing) {
+      setUser(existing);
+    }
   };
 
   const logout = () => {
@@ -433,6 +509,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         accessRequests,
         requestAccess,
         approveAccessRequest,
+        approveStudentDirectly,
         deleteAccessRequest
       }}
     >

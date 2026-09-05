@@ -25,11 +25,9 @@ const MainAppContent: React.FC = () => {
   const [selectedMaterialUnitId, setSelectedMaterialUnitId] = useState<number | null>(null);
   const [extrasSubTab, setExtrasSubTab] = useState<'hub' | 'planner' | 'exercises'>('hub');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalDefaultAdmin, setAuthModalDefaultAdmin] = useState(false);
   const [isAiTutorModalOpen, setIsAiTutorModalOpen] = useState(false);
 
-  const handleOpenAuth = (defaultAdmin = false) => {
-    setAuthModalDefaultAdmin(defaultAdmin);
+  const handleOpenAuth = () => {
     setIsAuthModalOpen(true);
   };
 
@@ -76,7 +74,7 @@ const MainAppContent: React.FC = () => {
       {/* Main Viewport */}
       <main className="flex-1 pb-16">
         {!isAuthenticated ? (
-          <PaywallGate onOpenLogin={() => handleOpenAuth(false)} />
+          <PaywallGate onOpenLogin={() => handleOpenAuth()} />
         ) : isSubscriptionBlocked && !isAdmin ? (
           <div className="max-w-xl mx-auto my-16 p-8 bg-white border border-rose-200 rounded-3xl text-center space-y-4 shadow-lg">
             <h2 className="text-2xl font-black text-rose-600">Período de Acesso Expirado</h2>
@@ -185,11 +183,11 @@ const MainAppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Auth Modal (Aluno / Carlos Admin) */}
+      {/* Auth Modal (Login Unificado) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        defaultToAdmin={authModalDefaultAdmin}
+        onAdminLogin={() => setCurrentTab('admin')}
       />
 
       {/* Footer */}
@@ -218,12 +216,7 @@ const MainAppContent: React.FC = () => {
             <span>•</span>
             <span>CEFR Skills</span>
             <span>•</span>
-            <button
-              onClick={() => handleOpenAuth(true)}
-              className="text-emerald-400 hover:underline font-mono"
-            >
-              Acesso Professor Carlos
-            </button>
+            <span>Insight English Club © {new Date().getFullYear()}</span>
           </div>
         </div>
       </footer>

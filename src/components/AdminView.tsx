@@ -31,7 +31,7 @@ import { User } from '../types';
 import { INSIGHT_LOGO_ICON, CALENDLY_BOOKING_URL } from '../assets/brand';
 
 export const AdminView: React.FC = () => {
-  const { allStudents, accessRequests, approveAccessRequest, deleteAccessRequest, renewStudentCycle, user } = useAuth();
+  const { allStudents, accessRequests, approveAccessRequest, approveStudentDirectly, deleteAccessRequest, renewStudentCycle, user } = useAuth();
   const { conversationSubmissions, scheduledClasses } = useProgress();
 
   const [selectedStudentId, setSelectedStudentId] = useState<string>(
@@ -418,20 +418,29 @@ export const AdminView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Botão de Renovação do Ciclo de 30 Dias */}
-                <div className="w-full sm:w-auto">
+                {/* Botões de Ação do Aluno */}
+                <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  {selectedStudent.isRequestPending && (
+                    <button
+                      onClick={() => {
+                        approveStudentDirectly(selectedStudent.id);
+                        setActionNotice(`Acesso de ${selectedStudent.name} liberado com sucesso por 30 dias!`);
+                        setTimeout(() => setActionNotice(null), 4000);
+                      }}
+                      className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all hover:scale-105 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Aprovar Acesso Agora (+30 dias)</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleRenewCycle(selectedStudent.id)}
-                    className="w-full sm:w-auto flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all hover:scale-105"
+                    className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all hover:scale-105 cursor-pointer"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    <span>Renovar por Mais um Ciclo (+30 dias)</span>
+                    <span>Renovar Ciclo (+30 dias)</span>
                   </button>
-                  {renewalSuccessId === selectedStudent.id && (
-                    <span className="block text-[11px] text-emerald-600 font-bold text-right mt-1">
-                      ✓ Ciclo renovado com sucesso! +30 dias concedidos.
-                    </span>
-                  )}
                 </div>
               </div>
 
