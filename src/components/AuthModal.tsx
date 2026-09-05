@@ -9,7 +9,9 @@ import {
   CheckCircle2, 
   AlertCircle,
   Send,
-  Lock
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { INSIGHT_HEADER_BANNER } from '../assets/brand';
@@ -34,11 +36,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Request access form state
   const [reqName, setReqName] = useState('');
   const [reqEmail, setReqEmail] = useState('');
   const [reqPhone, setReqPhone] = useState('');
+  const [reqPassword, setReqPassword] = useState('');
+  const [reqConfirmPassword, setReqConfirmPassword] = useState('');
+  const [showReqPassword, setShowReqPassword] = useState(false);
   const [reqNotes, setReqNotes] = useState('');
 
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +75,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    if (!loginPassword.trim()) {
+      setError('Por favor, digite sua senha de acesso.');
+      return;
+    }
+
     const result = login(cleanId, cleanId, loginPassword);
 
     if (result.success) {
@@ -84,11 +95,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    if (result.status === 'invalid_password') {
+      setError(result.message);
+      return;
+    }
+
     if (result.status === 'pending') {
       setPendingNotice({
         title: 'Acesso em Análise',
         studentName: result.name,
-        description: 'Sua solicitação de acesso já está registrada e em análise pela Equipe Insight. Por favor, aguarde a confirmação da liberação para poder entrar na plataforma.'
+        description: 'Sua solicitação de acesso já está registrada e em análise pela Equipe Insight. Por favor, aguarde a liberação do seu cadastro para poder entrar na plataforma.'
       });
       return;
     }
@@ -109,17 +125,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    if (!reqPassword.trim()) {
+      setError('Por favor, crie uma senha para acessar sua conta.');
+      return;
+    }
+
+    if (reqPassword.trim().length < 4) {
+      setError('A senha deve conter pelo menos 4 caracteres.');
+      return;
+    }
+
+    if (reqPassword !== reqConfirmPassword) {
+      setError('A confirmação de senha não confere. Por favor, digite a mesma senha em ambos os campos.');
+      return;
+    }
+
     requestAccess({
       name: reqName.trim(),
       email: reqEmail.trim(),
       phone: reqPhone.trim(),
+      password: reqPassword.trim(),
       notes: reqNotes.trim()
     });
 
     setPendingNotice({
       title: 'Solicitação Enviada com Sucesso!',
       studentName: reqName.trim(),
-      description: 'Seus dados foram registrados com sucesso. Para garantir a segurança dos alunos, novos acessos são verificados e liberados pela Equipe Insight. Por favor, aguarde a liberação do seu acesso. Entraremos em contato via WhatsApp ou e-mail assim que a sua matrícula for ativada.'
+      description: 'Sua solicitação e sua senha foram registradas com sucesso. Novos acessos são verificados e liberados pela Equipe Insight. Assim que sua matrícula for ativada, você poderá entrar na plataforma com seu e-mail e a senha que acabou de cadastrar!'
     });
   };
 
@@ -256,13 +288,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Senha de Acesso
                   </label>
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 shadow-inner"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 shadow-inner"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      tabIndex={-1}
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -298,7 +341,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="space-y-1 text-center">
                   <h3 className="text-base font-bold text-white">Requisitar Primeiro Acesso</h3>
                   <p className="text-[11px] text-slate-400">
-                    Preencha os dados abaixo para análise da Equipe Insight.
+                    Preencha os dados abaixo e defina sua senha para análise da Equipe Insight.
                   </p>
                 </div>
 
@@ -342,6 +385,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     placeholder="(11) 99999-9999"
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Criar Senha <span className="text-rose-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showReqPassword ? 'text' : 'password'}
+                        required
+                        value={reqPassword}
+                        onChange={(e) => setReqPassword(e.target.value)}
+                        placeholder="Mínimo 4 dígitos"
+                        className="w-full pl-3.5 pr-8 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowReqPassword(!showReqPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                        tabIndex={-1}
+                      >
+                        {showReqPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Confirmar Senha <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type={showReqPassword ? 'text' : 'password'}
+                      required
+                      value={reqConfirmPassword}
+                      onChange={(e) => setReqConfirmPassword(e.target.value)}
+                      placeholder="Repita sua senha"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div>

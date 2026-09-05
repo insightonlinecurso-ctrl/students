@@ -23,7 +23,12 @@ import {
   UserPlus,
   Trash2,
   MessageCircle,
-  Sparkles
+  Sparkles,
+  Key,
+  Eye,
+  EyeOff,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProgress } from '../context/ProgressContext';
@@ -38,7 +43,8 @@ export const AdminView: React.FC = () => {
     approveStudentDirectly, 
     deleteAccessRequest, 
     deleteStudent,
-    renewStudentCycle, 
+    renewStudentCycle,
+    updateStudentPassword,
     user 
   } = useAuth();
   const { conversationSubmissions, scheduledClasses } = useProgress();
@@ -50,6 +56,47 @@ export const AdminView: React.FC = () => {
   const [renewalSuccessId, setRenewalSuccessId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<User | null>(null);
+
+  // Password management state
+  const [editingPasswordStudentId, setEditingPasswordStudentId] = useState<string | null>(null);
+  const [newPasswordInput, setNewPasswordInput] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<{ [id: string]: boolean }>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const toggleShowPassword = (id: string) => {
+    setShowPassword((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let pass = '';
+    for (let i = 0; i < 6; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  };
+
+  const handleCopyCredentials = (student: User) => {
+    const pass = student.password || '123456';
+    const text = `Olá ${student.name}, seu acesso à plataforma Insight English Club está liberado!\n\nDados de login:\nE-mail: ${student.email}\nSenha: ${pass}\nLink de acesso: ${window.location.origin}\n\nBons estudos!`;
+    navigator.clipboard.writeText(text);
+    setCopiedId(student.id);
+    setActionNotice(`Dados de acesso de ${student.name} copiados com sucesso!`);
+    setTimeout(() => {
+      setCopiedId(null);
+      setActionNotice(null);
+    }, 4000);
+  };
+
+  const handleSavePassword = (studentId: string) => {
+    const clean = newPasswordInput.trim();
+    if (!clean) return;
+    updateStudentPassword(studentId, clean);
+    setActionNotice('Senha do aluno atualizada com sucesso!');
+    setEditingPasswordStudentId(null);
+    setNewPasswordInput('');
+    setTimeout(() => setActionNotice(null), 3500);
+  };
 
   const handleConfirmDeleteStudent = () => {
     if (!studentToDelete) return;
@@ -258,6 +305,14 @@ export const AdminView: React.FC = () => {
                     <div className="flex items-center space-x-2 text-[10px] text-slate-400 pt-1">
                       <Clock className="w-3 h-3" />
                       <span>Data: {new Date(req.createdAt).toLocaleString('pt-BR')}</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-xs pt-1 p-2 rounded-xl bg-blue-50/70 border border-blue-100">
+                      <Key className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span className="text-slate-600 font-medium">Senha solicitada:</span>
+                      <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-blue-200 text-xs">
+                        {req.password || '123456'}
+                      </span>
                     </div>
 
                     {req.notes && (
@@ -519,6 +574,152 @@ export const AdminView: React.FC = () => {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Credenciais & Senha do Aluno */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <Key className="w-5 h-5" />
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">
+                      Credenciais & Senha de Acesso do Aluno
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Visualize ou redefina a senha deste aluno e copie os dados de acesso prontos para o WhatsApp.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* E-mail cadastrado */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500 block">E-mail de Login</span>
+                  <span className="text-sm font-bold text-slate-900 font-mono block truncate">
+                    {selectedStudent.email}
+                  </span>
+                </div>
+
+                {/* Senha cadastrada com toggle */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-semibold text-slate-500 block">Senha Atual</span>
+                    <span className="text-sm font-black text-slate-900 font-mono">
+                      {showPassword[selectedStudent.id] 
+                        ? (selectedStudent.password || '123456') 
+                        : '••••••••'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => toggleShowPassword(selectedStudent.id)}
+                    className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-200/60 transition-colors"
+                    title={showPassword[selectedStudent.id] ? 'Ocultar Senha' : 'Ver Senha'}
+                  >
+                    {showPassword[selectedStudent.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Botões de Ação de Senha */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  onClick={() => handleCopyCredentials(selectedStudent)}
+                  className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer shadow-xs ${
+                    copiedId === selectedStudent.id
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white'
+                  }`}
+                >
+                  {copiedId === selectedStudent.id ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Copiado para WhatsApp!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copiar Dados de Acesso (WhatsApp)</span>
+                    </>
+                  )}
+                </button>
+
+                {editingPasswordStudentId !== selectedStudent.id ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditingPasswordStudentId(selectedStudent.id);
+                        setNewPasswordInput(selectedStudent.password || '');
+                      }}
+                      className="py-2.5 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                      <span>Alterar Senha do Aluno</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const random = generateRandomPassword();
+                        updateStudentPassword(selectedStudent.id, random);
+                        setActionNotice(`Nova senha gerada automaticamente para ${selectedStudent.name}: ${random}`);
+                        setTimeout(() => setActionNotice(null), 5000);
+                      }}
+                      className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5"
+                      title="Gera uma senha curta e segura automaticamente"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Gerar Senha Automática</span>
+                    </button>
+                  </>
+                ) : null}
+              </div>
+
+              {/* Formulário Inline de Alteração de Senha */}
+              {editingPasswordStudentId === selectedStudent.id && (
+                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-3 animate-fadeIn mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-blue-900">
+                      Definir Nova Senha para {selectedStudent.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const random = generateRandomPassword();
+                        setNewPasswordInput(random);
+                      }}
+                      className="text-[11px] text-blue-700 hover:underline font-bold flex items-center space-x-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-600" />
+                      <span>Sugerir Senha Automática</span>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="text"
+                      value={newPasswordInput}
+                      onChange={(e) => setNewPasswordInput(e.target.value)}
+                      placeholder="Digite a nova senha..."
+                      className="flex-1 px-3.5 py-2 rounded-xl bg-white border border-blue-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => handleSavePassword(selectedStudent.id)}
+                      className="py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                    >
+                      Salvar Nova Senha
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingPasswordStudentId(null);
+                        setNewPasswordInput('');
+                      }}
+                      className="py-2 px-3 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-medium cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Respostas do Aluno nos Exercícios de Conversação do Material */}

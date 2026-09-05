@@ -13,11 +13,12 @@ interface AuthContextType {
   updateUserHours: (hours: number) => void;
   setStudentCefrLevel: (level: CEFRLevel) => void;
   renewStudentCycle: (studentId: string) => void;
+  updateStudentPassword: (studentId: string, newPassword: string) => void;
   allStudents: User[];
   accessRequests: AccessRequest[];
-  requestAccess: (data: { name: string; email: string; phone?: string; notes?: string }) => void;
-  approveAccessRequest: (requestId: string) => void;
-  approveStudentDirectly: (studentId: string) => void;
+  requestAccess: (data: { name: string; email: string; phone?: string; notes?: string; password?: string }) => void;
+  approveAccessRequest: (requestId: string, customPassword?: string) => void;
+  approveStudentDirectly: (studentId: string, customPassword?: string) => void;
   deleteAccessRequest: (requestId: string) => void;
   deleteStudent: (studentId: string) => void;
 }
@@ -33,7 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone: string = '',
     notes: string = '',
     createdAt?: string,
-    isRequestPending: boolean = false
+    isRequestPending: boolean = false,
+    password: string = '123456'
   ): User => {
     const today = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -48,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: name || 'Aluno Insight',
       email,
       phone,
+      password: password || '123456',
       role: 'student',
       createdAt: todayIso,
       subscriptionDaysLeft: 30,
@@ -123,7 +126,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (saved) {
       try {
         const parsed: User[] = JSON.parse(saved);
-        students = parsed.filter((u) => u.id !== 'usr_demo_101');
+        students = parsed
+          .filter((u) => u.id !== 'usr_demo_101')
+          .map((s) => ({
+            ...s,
+            password: s.password || '123456'
+          }));
       } catch (e) {
         students = [];
       }
@@ -144,7 +152,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 item.phone || '',
                 item.notes || '',
                 item.date,
-                true
+                true,
+                item.password || '123456'
               );
               students.unshift(newSt);
             }
@@ -270,6 +279,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
+      // Validação OBRIGATÓRIA da senha do aluno
+      const expectedPassword = (existing.password || '123456').trim();
+      if (!cleanPassword || cleanPassword !== expectedPassword) {
+        return {
+          success: false,
+          status: 'invalid_password',
+          message: 'Senha incorreta. Por favor, digite a senha cadastrada na sua solicitação de acesso ou solicite redefinição com a Equipe Insight.'
+        };
+      }
+
       // Se a assinatura está bloqueada
       if (existing.subscriptionStatus === 'blocked') {
         return {
@@ -288,7 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Aluno ativo e aprovado pela Equipe Insight!
+      // Aluno ativo e aprovado com senha correta!
       const updated = phone && !existing.phone ? { ...existing, phone } : existing;
       setUser(updated);
       return { success: true, role: 'student' };
@@ -303,13 +322,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  // Requisitar Acesso: Adiciona solicitação formal E cadastra em allStudents para o admin Carlos visualizar
-  const requestAccess = (data: { name: string; email: string; phone?: string; notes?: string }) => {
+  // Requisitar Acesso: Adiciona solicitação formal com senha e cadastra em allStudents
+  const requestAccess = (data: { name: string; email: string; phone?: string; notes?: string; password?: string }) => {
+    const studentPassword = (data.password || '').trim() || '123456';
     const newReq: AccessRequest = {
       id: `req_${Date.now()}`,
       name: data.name,
       email: data.email,
       phone: data.phone || '',
+      password: studentPassword,
       notes: data.notes || '',
       createdAt: new Date().toISOString(),
       status: 'pending'
@@ -329,6 +350,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...updated[existingIdx],
           name: data.name || updated[existingIdx].name,
           phone: data.phone || updated[existingIdx].phone,
+          password: studentPassword || updated[existingIdx].password,
           requestNotes: data.notes || updated[existingIdx].requestNotes,
           isRequestPending: true,
           requestedAt: new Date().toISOString()
@@ -343,19 +365,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data.phone || '',
         data.notes || '',
         undefined,
-        true
+        true,
+        studentPassword
       );
       return [newStudent, ...prev];
     });
   };
 
-  const approveAccessRequest = (requestId: string) => {
+  const approveAccessRequest = (requestId: string, customPassword?: string) => {
     let approvedEmail = '';
+    let reqPassword = '';
     setAccessRequests((prev) =>
       prev.map((r) => {
         if (r.id === requestId) {
           approvedEmail = r.email.toLowerCase();
-          return { ...r, status: 'approved' as const };
+          reqPassword = customPassword?.trim() || r.password || '';
+          return {
+            ...r,
+            password: reqPassword || r.password,
+            status: 'approved' as const
+          };
         }
         return r;
       })
@@ -363,6 +392,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const targetReq = accessRequests.find((r) => r.id === requestId);
     const emailToApprove = approvedEmail || targetReq?.email?.toLowerCase();
+    const passwordToSet = customPassword?.trim() || reqPassword || targetReq?.password;
 
     if (emailToApprove) {
       setAllStudents((prev) =>
@@ -370,6 +400,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (s.email.toLowerCase() === emailToApprove) {
             return {
               ...s,
+              password: passwordToSet || s.password || '123456',
               isRequestPending: false,
               subscriptionStatus: 'active',
               subscriptionDaysLeft: 30
@@ -381,7 +412,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const approveStudentDirectly = (studentId: string) => {
+  const approveStudentDirectly = (studentId: string, customPassword?: string) => {
     let studentEmail = '';
     setAllStudents((prev) =>
       prev.map((s) => {
@@ -389,6 +420,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           studentEmail = s.email.toLowerCase();
           return {
             ...s,
+            password: customPassword?.trim() || s.password || '123456',
             isRequestPending: false,
             subscriptionStatus: 'active',
             subscriptionDaysLeft: 30
@@ -401,9 +433,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (studentEmail) {
       setAccessRequests((prev) =>
         prev.map((r) =>
-          r.email.toLowerCase() === studentEmail ? { ...r, status: 'approved' as const } : r
+          r.email.toLowerCase() === studentEmail
+            ? {
+                ...r,
+                password: customPassword?.trim() || r.password,
+                status: 'approved' as const
+              }
+            : r
         )
       );
+    }
+  };
+
+  const updateStudentPassword = (studentId: string, newPassword: string) => {
+    const cleanPass = newPassword.trim();
+    if (!cleanPass) return;
+    setAllStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, password: cleanPass } : s))
+    );
+    const targetStudent = allStudents.find((s) => s.id === studentId);
+    if (targetStudent) {
+      setAccessRequests((prev) =>
+        prev.map((r) =>
+          r.email.toLowerCase() === targetStudent.email.toLowerCase()
+            ? { ...r, password: cleanPass }
+            : r
+        )
+      );
+    }
+    if (user && user.id === studentId) {
+      setUser((prev) => (prev ? { ...prev, password: cleanPass } : null));
     }
   };
 
@@ -512,6 +571,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserHours,
         setStudentCefrLevel,
         renewStudentCycle,
+        updateStudentPassword,
         allStudents,
         accessRequests,
         requestAccess,

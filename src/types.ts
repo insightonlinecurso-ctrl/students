@@ -14,6 +14,7 @@ export interface AccessRequest {
   name: string;
   email: string;
   phone: string;
+  password?: string;
   notes?: string;
   createdAt: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -24,6 +25,7 @@ export type LoginResult =
   | { success: true; role: 'student' }
   | { success: false; status: 'pending'; name: string }
   | { success: false; status: 'not_found'; message: string }
+  | { success: false; status: 'invalid_password'; message: string }
   | { success: false; status: 'blocked'; message: string };
 
 export interface User {
@@ -31,6 +33,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  password?: string;
   role: 'student' | 'admin';
   avatarUrl?: string;
   createdAt: string;
